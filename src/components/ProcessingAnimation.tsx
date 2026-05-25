@@ -19,6 +19,13 @@ const SLOW_TARGET = 90
 const TOTAL_DURATION_MS = (STAGES.length - 1) * STAGE_INTERVAL_MS
 const COMPLETE_HOLD_MS = 350
 
+function prefersReducedMotion() {
+  return (
+    typeof window !== 'undefined' &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  )
+}
+
 function calcProgress(elapsed: number) {
   if (elapsed >= TOTAL_DURATION_MS) return 100
   if (elapsed <= FAST_DURATION_MS) {
@@ -29,17 +36,12 @@ function calcProgress(elapsed: number) {
 }
 
 export function ProcessingAnimation({ onComplete }: ProcessingAnimationProps) {
+  const reduceMotion = prefersReducedMotion()
   const [progress, setProgress] = useState(0)
   const [stageIndex, setStageIndex] = useState(0)
 
   useEffect(() => {
-    const reduceMotion =
-      typeof window !== 'undefined' &&
-      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
-
     if (reduceMotion) {
-      setProgress(100)
-      setStageIndex(STAGES.length - 1)
       const timer = window.setTimeout(onComplete, 400)
       return () => window.clearTimeout(timer)
     }
@@ -70,9 +72,11 @@ export function ProcessingAnimation({ onComplete }: ProcessingAnimationProps) {
       cancelAnimationFrame(rafId)
       if (completeTimer !== undefined) window.clearTimeout(completeTimer)
     }
-  }, [onComplete])
+  }, [onComplete, reduceMotion])
 
-  const isReady = stageIndex === STAGES.length - 1
+  const displayProgress = reduceMotion ? 100 : progress
+  const displayStageIndex = reduceMotion ? STAGES.length - 1 : stageIndex
+  const isReady = displayStageIndex === STAGES.length - 1
   const barTransition = isReady
     ? 'transition-[width] duration-150 ease-out'
     : 'transition-[width] duration-75 linear'
@@ -112,19 +116,19 @@ export function ProcessingAnimation({ onComplete }: ProcessingAnimationProps) {
             {isReady ? 'Документ обработан' : 'Обрабатываем документ…'}
           </p>
           <p className="mt-0.5 text-status text-muted">
-            <span key={stageIndex} className="inline-block animate-stage-fade">
-              {STAGES[stageIndex]}
+            <span key={displayStageIndex} className="inline-block animate-stage-fade">
+              {STAGES[displayStageIndex]}
             </span>
           </p>
         </div>
         <span className="shrink-0 text-table-data font-semibold tabular-nums text-foreground">
-          {progress}%
+          {displayProgress}%
         </span>
       </div>
       <div className="mt-4 h-2 w-full overflow-hidden rounded-full bg-page">
         <div
           className={`h-full rounded-full bg-accent ${barTransition}`}
-          style={{ width: `${progress}%` }}
+          style={{ width: `${displayProgress}%` }}
         />
       </div>
     </div>
